@@ -252,6 +252,51 @@
     }
     node.innerHTML = html;
 
+    // render grid preview canvas
+    (function renderGridPreview(){
+      try{
+        let canvas = document.getElementById('grid_preview');
+        if(!canvas){
+          canvas = document.createElement('canvas');
+          canvas.id = 'grid_preview';
+          canvas.width = 360;
+          canvas.height = 120;
+          canvas.style.width = '100%';
+          canvas.style.height = '80px';
+          canvas.className = 'mt-2 border border-gray-800';
+          node.appendChild(canvas);
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        if(!Array.isArray(calc.grid_points) || calc.grid_points.length===0) return;
+        const gp = calc.grid_points;
+        const prices = gp.map(x=>Number(x.price));
+        const minP = Math.min(...prices);
+        const maxP = Math.max(...prices);
+        const range = Math.max(1, maxP - minP);
+        // draw background
+        ctx.fillStyle = '#0c0e12'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        // draw lines
+        ctx.strokeStyle = '#2b3139'; ctx.lineWidth = 1;
+        gp.forEach(g=>{
+          const p = Number(g.price);
+          const y = Math.round((1 - ((p - minP) / range)) * (canvas.height - 8) + 4);
+          ctx.beginPath(); ctx.moveTo(6, y); ctx.lineTo(canvas.width - 6, y); ctx.stroke();
+          // label every Nth
+        });
+        // price labels for min/max/current
+        ctx.fillStyle = '#cbd5e1'; ctx.font = '12px monospace';
+        ctx.fillText('High: ' + Number(maxP).toLocaleString(), 8, 14);
+        ctx.fillText('Low: ' + Number(minP).toLocaleString(), 8, canvas.height - 6);
+        if(calc.current_price){
+          const cp = Number(calc.current_price);
+          const y = Math.round((1 - ((cp - minP) / range)) * (canvas.height - 8) + 4);
+          ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+          ctx.fillStyle = '#f59e0b'; ctx.fillText('Now: ' + Number(cp).toLocaleString(), canvas.width - 140, 14);
+        }
+      }catch(e){/*ignore*/}
+    })();
+
     // disable create if insufficient funds
     if(!calc.can_run || Number(calc.available_krw) < Number(calc.min_required_krw)){
       createBtn.disabled = true; createBtn.classList.add('opacity-50');
