@@ -150,6 +150,71 @@
 (function(){
   const base = 'https://constraints-sunny-camp-antonio.trycloudflare.com';
   const metricsUrl = base + '/api/stream-data';
+  const botCalcUrl = base + '/api/bot/calculator';
+  const botCreateUrl = base + '/api/bot/create';
+
+  // Bot builder UI helpers
+  function $(sel, root=document){ return root.querySelector(sel); }
+  const rightPane = document.querySelector('aside.w-1/4');
+  const lowerInput = $('input[type="number"]', rightPane);
+  const upperInput = rightPane.querySelectorAll('input[type="number"]')[1];
+  const gridRange = rightPane.querySelector('input[type="range"]');
+  const investInput = rightPane.querySelectorAll('input[type="number"]')[2];
+  const createBtn = rightPane.querySelector('button[onclick]');
+
+  // render helper for calc results
+  function renderCalc(calc){
+    let node = document.getElementById('bot_calc_info');
+    if(!node){ node = document.createElement('div'); node.id='bot_calc_info'; node.className='text-xs text-gray-300 mt-2'; investInput.parentNode.appendChild(node); }
+    node.innerHTML = `최소 필요: ₩${Number(calc.min_required_krw).toLocaleString()} · 그리드당 KRW: ₩${Number(calc.krw_per_grid).toLocaleString()} · 격자 간격: ₩${Number(calc.grid_spacing).toLocaleString()} (~${calc.percent_spacing}% ) · 예상 수익률(격자): ${calc.expected_profit_pct}% · 즉시 매수수량(추정): ${calc.initial_buy_qty}`;
+    // disable create if insufficient funds
+    if(!calc.can_run || Number(calc.available_krw) < Number(calc.min_required_krw)){
+      createBtn.disabled = true; createBtn.classList.add('opacity-50');
+      // show warning
+      let w = document.getElementById('bot_calc_warn');
+      if(!w){ w = document.createElement('div'); w.id='bot_calc_warn'; w.className='text-rose-400 text-xs mt-1'; investInput.parentNode.appendChild(w); }
+      w.innerText = '잔액 부족 또는 설정값이 최소 요구사항을 만족하지 않습니다.';
+    } else {
+      createBtn.disabled = false; createBtn.classList.remove('opacity-50');
+      const w = document.getElementById('bot_calc_warn'); if(w) w.remove();
+    }
+  }
+
+  async function fetchCalc(){
+    try{
+      const body = { lower_limit: Number(lowerInput.value), upper_limit: Number(upperInput.value), grid_qty: Number(gridRange.value), invest_amount: Number(investInput.value) };
+      const res = await fetch(botCalcUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if(!res.ok) return;
+      const j = await res.json();
+      renderCalc(j);
+    }catch(e){/*ignore*/}
+  }
+
+  // Debounce helper
+  let debounceId = null;
+  function scheduleCalc(){ if(debounceId) clearTimeout(debounceId); debounceId = setTimeout(()=>{ fetchCalc(); debounceId=null; }, 150); }
+
+  lowerInput.addEventListener('input', scheduleCalc);
+  upperInput.addEventListener('input', scheduleCalc);
+  gridRange.addEventListener('input', ()=>{ rightPane.querySelector('span.text-emerald-400').innerText = gridRange.value; scheduleCalc(); });
+  investInput.addEventListener('input', scheduleCalc);
+
+  // Create button - call backend to actually spawn bot
+  createBtn.addEventListener('click', async function(ev){
+    ev.preventDefault();
+    createBtn.disabled = true; createBtn.innerText = '시작 중...';
+    try{
+      const body = { lower_limit: Number(lowerInput.value), upper_limit: Number(upperInput.value), grid_qty: Number(gridRange.value), invest_amount: Number(investInput.value), mode: 'arithmetic' };
+      const res = await fetch(botCreateUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const j = await res.json();
+      if(j.status === 'ok'){
+        createBtn.innerText = '🚀 봇 가동 완료';
+        setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1500);
+      } else {
+        createBtn.innerText = '실패'; setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1200);
+      }
+    }catch(e){ createBtn.innerText='오류'; setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1200); }
+  });
 
   // Polling loop - 1s interval
   async function pollStream(){
