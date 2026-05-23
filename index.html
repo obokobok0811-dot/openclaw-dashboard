@@ -48,11 +48,11 @@
                 </div>
                 <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
                     <p class="text-xs text-gray-400 font-medium">누적 API 토큰 비용</p>
-                    <p class="text-lg font-bold text-amber-400 mt-1" id="token_cost">$-- / <span class="text-sm text-gray-500">$--</span></p>
+                    <p class="text-lg font-bold text-amber-400 mt-1" id="token_cost">$-- <span class="text-sm text-gray-500">(누적)</span></p>
                 </div>
                 <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
                     <p class="text-xs text-gray-400 font-medium">활성 에이전트 스웜</p>
-                    <p class="text-lg font-bold text-indigo-400 mt-1" id="active_agents">-- / -- <span class="text-xs text-emerald-500 font-normal">--</span></p>
+                    <p class="text-lg font-bold text-indigo-400 mt-1" id="active_agents">-- <span class="text-xs text-emerald-500 font-normal">agents</span></p>
                 </div>
             </section>
 
@@ -160,7 +160,30 @@
 
       // KPI: map total_assets + last prices for BTC/ETH
       if(j.metrics){
-        document.getElementById('total_assets').innerText = '₩' + Number(j.metrics.total_assets || 0).toLocaleString();
+        // total assets
+        const total = Number(j.metrics.total_assets || 0);
+        document.getElementById('total_assets').innerText = '₩' + total.toLocaleString();
+        // token cost (USD) - show two decimals
+        const tc = Number(j.metrics.token_cost || 0);
+        document.getElementById('token_cost').innerText = '$' + tc.toFixed(2) + ' (누적)';
+        // daily goal percent
+        const dg = Number(j.metrics.daily_goal || 0);
+        document.getElementById('daily_goal').innerText = dg.toFixed(1) + '%';
+        // active agents
+        const aa = Number(j.metrics.active_agents || 0);
+        document.getElementById('active_agents').innerText = aa + ' agents';
+        // optional assets change badge
+        try{
+          const last = Number(j.metrics.last_price || 0);
+          const prev = Number(document.getElementById('total_assets').dataset.prev || 0);
+          const changeNode = document.getElementById('assets_change');
+          if(prev && last){
+            const pct = ((last - prev)/prev)*100;
+            changeNode.innerText = (pct>=0?'+':'') + pct.toFixed(2) + '%';
+            changeNode.style.color = pct>=0? 'var(--tw-text-emerald-500)' : 'var(--tw-text-rose-500)';
+          }
+          document.getElementById('total_assets').dataset.prev = last;
+        }catch(e){}
       }
 
       // real-time trade prices
@@ -208,8 +231,37 @@
     }
   }
 
-  setInterval(pollStream,1000);
-  pollStream();
+  // prefer websocket for metrics/logs; fallback to polling
+  (function initRealtime(){
+    let ws;
+    try{
+      ws = new WebSocket((location.protocol==='https:'? 'wss://' : 'ws://') + (new URL(base)).host + '/ws/logs');
+      ws.onmessage = (ev)=>{
+        try{
+          const msg = JSON.parse(ev.data);
+          if(msg.metrics){
+            // apply metrics update immediately
+            document.getElementById('total_assets').innerText = '₩' + Number(msg.metrics.total_assets || 0).toLocaleString();
+            document.getElementById('token_cost').innerText = '$' + Number(msg.metrics.token_cost || 0).toFixed(2) + ' (누적)';
+            document.getElementById('daily_goal').innerText = (Number(msg.metrics.daily_goal||0)).toFixed(1) + '%';
+            document.getElementById('active_agents').innerText = (Number(msg.metrics.active_agents||0)) + ' agents';
+          }
+          if(msg.source === 'order' && msg.order){
+            const node = document.getElementById('log_terminal');
+            const line = document.createElement('div');
+            line.innerText = `[ORDER] ${msg.order.id} ${msg.order.market} ${msg.order.status} ${msg.order.price || ''}`;
+            node.prepend(line);
+          }
+        }catch(e){/* ignore */}
+      };
+      ws.onopen = ()=>{ console.info('ws open'); };
+      ws.onerror = ()=>{ console.warn('ws error, falling back to polling'); setInterval(pollStream,1000); pollStream(); };
+      ws.onclose = ()=>{ console.info('ws closed, fallback to polling'); setInterval(pollStream,1000); pollStream(); };
+    }catch(e){
+      setInterval(pollStream,1000);
+      pollStream();
+    }
+  })();
 })();
 </script>
 
