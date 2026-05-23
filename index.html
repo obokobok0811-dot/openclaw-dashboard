@@ -132,7 +132,31 @@
 </div>
                     <div>
                         <label class="text-gray-400 block mb-1.5 font-medium">투자 금액 (KRW)</label>
-                        <input type="number" value="1000000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                        <input id="bot_invest" type="number" value="1000000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <input id="bot_buy_first" type="checkbox" class="accent-emerald-500" />
+                        <label class="text-gray-400">즉시 매수(Buy First)</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">Stop Loss (KRW)</label>
+                        <input id="bot_stop_loss" type="number" placeholder="예: 3000000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white font-mono text-sm">
+                      </div>
+                      <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">Take Profit (KRW)</label>
+                        <input id="bot_take_profit" type="number" placeholder="예: 3600000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white font-mono text-sm">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="text-gray-400 block mb-1.5 font-medium">봇 이름 (선택)</label>
+                      <input id="bot_name" type="text" placeholder="My Grid Bot" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white font-mono text-sm">
+                    </div>
+                    <hr class="border-gray-800 mt-3">
+
+                    <div id="bot_list_container" class="mt-3 text-xs text-gray-300">
+                      <div class="font-medium mb-2">실행 중인 봇</div>
+                      <div id="bot_list"></div>
                     </div>
                 </div>
             </div>
@@ -160,13 +184,74 @@
   const upperInput = rightPane.querySelectorAll('input[type="number"]')[1];
   const gridRange = rightPane.querySelector('input[type="range"]');
   const investInput = rightPane.querySelectorAll('input[type="number"]')[2];
-  const createBtn = rightPane.querySelector('button[onclick]');
+  const investInput = rightPane.querySelectorAll('input[type="number"]')[2];
++  const buyFirstInput = document.getElementById('bot_buy_first');
++  const stopLossInput = document.getElementById('bot_stop_loss');
++  const takeProfitInput = document.getElementById('bot_take_profit');
++  const botNameInput = document.getElementById('bot_name');
++  const botList = document.getElementById('bot_list');
+@@
+   createBtn.addEventListener('click', async function(ev){
+     ev.preventDefault();
+     createBtn.disabled = true; createBtn.innerText = '시작 중...';
+     try{
+-      const body = { lower_limit: Number(lowerInput.value), upper_limit: Number(upperInput.value), grid_qty: Number(gridRange.value), invest_amount: Number(investInput.value), mode: 'arithmetic' };
++      const body = { lower_limit: Number(lowerInput.value), upper_limit: Number(upperInput.value), grid_qty: Number(gridRange.value), invest_amount: Number(investInput.value), mode: 'arithmetic', buy_first: Boolean(buyFirstInput.checked), stop_loss: Number(stopLossInput.value)||null, take_profit: Number(takeProfitInput.value)||null, name: botNameInput.value||null };
+       const res = await fetch(botCreateUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+       const j = await res.json();
+       if(j.status === 'ok'){
+         createBtn.innerText = '🚀 봇 가동 완료';
++        // refresh bot list
++        fetchBotList();
+         setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1500);
+       } else {
+         createBtn.innerText = '실패'; setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1200);
+       }
+     }catch(e){ createBtn.innerText='오류'; setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1200); }
+   });
++
++  async function fetchBotList(){
++    try{
++      const res = await fetch(base + '/api/bot/list');
++      if(!res.ok) return;
++      const j = await res.json();
++      botList.innerHTML = '';
++      (j.bots||[]).forEach(b=>{
++        const d = document.createElement('div'); d.className='mb-2';
++        d.innerHTML = `<div class="flex justify-between"><div>${b.name||b.bot_id} <span class="text-gray-400 text-xs">(${b.lower}~${b.upper} / ${b.grid_qty})</span></div><div><button data-bid="${b.bot_id}" class="text-xs bg-rose-600 px-2 py-0.5 rounded text-white stop-bot">Stop</button></div></div>`;
++        botList.appendChild(d);
++      });
++      // attach stop handlers
++      botList.querySelectorAll('.stop-bot').forEach(btn=>btn.addEventListener('click', async function(){
++        const bid = this.dataset.bid;
++        await fetch(base + '/api/bot/stop', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({bot_id: bid}) });
++        fetchBotList();
++      }));
++    }catch(e){/*ignore*/}
++  }
++
++  // initial list
++  fetchBotList();
 
-  // render helper for calc results
-  function renderCalc(calc){
     let node = document.getElementById('bot_calc_info');
     if(!node){ node = document.createElement('div'); node.id='bot_calc_info'; node.className='text-xs text-gray-300 mt-2'; investInput.parentNode.appendChild(node); }
-    node.innerHTML = `최소 필요: ₩${Number(calc.min_required_krw).toLocaleString()} · 그리드당 KRW: ₩${Number(calc.krw_per_grid).toLocaleString()} · 격자 간격: ₩${Number(calc.grid_spacing).toLocaleString()} (~${calc.percent_spacing}% ) · 예상 수익률(격자): ${calc.expected_profit_pct}% · 즉시 매수수량(추정): ${calc.initial_buy_qty}`;
+    // summary header
+    let html = `최소 필요: ₩${Number(calc.min_required_krw).toLocaleString()} · 그리드당 KRW: ₩${Number(calc.krw_per_grid).toLocaleString()} · 격자 간격: ₩${Number(calc.grid_spacing).toLocaleString()} (~${calc.percent_spacing}% ) · 예상 수익률(격자): ${calc.expected_profit_pct}% · 즉시 매수수량(추정): ${calc.initial_buy_qty}`;
+    // grid points table if available
+    if(Array.isArray(calc.grid_points)){
+      let total_profit = 0;
+      html += '<div class="mt-2 overflow-auto max-h-48">';
+      html += '<table class="w-full text-xs"><thead><tr><th class="text-left">#</th><th class="text-left">Price</th><th class="text-left">KRW</th><th class="text-left">Qty</th><th class="text-left">Est Profit (KRW)</th></tr></thead><tbody>';
+      calc.grid_points.slice(0,200).forEach(g=>{
+        total_profit += Number(g.expected_profit_krw||0);
+        html += `<tr><td>${g.index}</td><td>₩${Number(g.price).toLocaleString()}</td><td>₩${Number(g.krw_alloc).toLocaleString()}</td><td>${g.qty}</td><td>₩${Number(g.expected_profit_krw).toLocaleString()}</td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+      html += `<div class="text-xs text-emerald-300 mt-1">예상 총 격자 이익(모든 격자 합산, 보수적 추정): ₩${Number(total_profit).toLocaleString()}</div>`;
+      if(calc.current_price){ html += `<div class="text-xs text-gray-400 mt-1">현재가: ₩${Number(calc.current_price).toLocaleString()}</div>`; }
+    }
+    node.innerHTML = html;
+
     // disable create if insufficient funds
     if(!calc.can_run || Number(calc.available_krw) < Number(calc.min_required_krw)){
       createBtn.disabled = true; createBtn.classList.add('opacity-50');
