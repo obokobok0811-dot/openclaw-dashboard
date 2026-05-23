@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw AI Swarm Control Room</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { background-color: #0c0e12; color: #eaecef; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-sans overflow-hidden">
+
+    <!-- 1. 최상단 내비게이션 바 -->
+    <header class="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-[#161a1e]">
+        <div class="flex items-center space-x-3">
+            <span class="text-emerald-500 font-black text-xl tracking-wider">OpenClaw</span>
+            <span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded font-mono">v2.0-Sandbox</span>
+        </div>
+        <div class="flex items-center space-x-6 text-sm">
+            <div class="flex items-center space-x-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-gray-300 font-medium">업비트 연동 활성화</span>
+            </div>
+            <button onclick="alert('🚨 EMERGENCY KILL-SWITCH ACTIVATED')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded transition shadow-lg shadow-rose-900/30">
+                ⚠️ KILL-SWITCH
+            </button>
+        </div>
+    </header>
+
+    <!-- 2. 메인 대시보드 영역 -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- 좌측: 차트 및 실시간 데이터 (75% 너비) -->
+        <main class="w-3/4 flex flex-col border-r border-gray-800">
+            <!-- 상단: 실시간 자산 & 토큰 KPI 지표 -->
+            <section class="grid grid-cols-4 gap-4 p-4 bg-[#0c0e12]" id="kpi_section">
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">총 가상 자산</p>
+                    <p class="text-lg font-bold text-white mt-1" id="total_assets">₩-- <span class="text-xs text-emerald-500 font-normal" id="assets_change">--</span></p>
+                </div>
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">당일 목표 달성률</p>
+                    <p class="text-lg font-bold text-emerald-400 mt-1" id="daily_goal">--% <span class="text-xs text-gray-500 font-normal">(진행중)</span></p>
+                </div>
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">누적 API 토큰 비용</p>
+                    <p class="text-lg font-bold text-amber-400 mt-1" id="token_cost">$-- / <span class="text-sm text-gray-500">$--</span></p>
+                </div>
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">활성 에이전트 스웜</p>
+                    <p class="text-lg font-bold text-indigo-400 mt-1" id="active_agents">-- / -- <span class="text-xs text-emerald-500 font-normal">--</span></p>
+                </div>
+            </section>
+
+            <!-- 중단: 트레이딩뷰 실시간 라이브 차트 -->
+            <section class="flex-1 bg-[#161a1e] relative min-h-[450px]">
+                <!-- TradingView Widget BEGIN -->
+                <div class="tradingview-widget-container h-full w-full">
+                    <div id="tradingview_chart" class="h-full w-full"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                    <script type="text/javascript">
+                    new TradingView.widget({
+                        "autosize": true,
+                        "symbol": "UPBIT:ETHKRW",
+                        "interval": "15",
+                        "timezone": "Asia/Seoul",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "ko",
+                        "enable_publishing": false,
+                        "hide_side_toolbar": false,
+                        "allow_symbol_change": true,
+                        "container_id": "tradingview_chart"
+                    });
+                    </script>
+                </div>
+                <!-- TradingView Widget END -->
+            </section>
+
+            <!-- 하단: 에이전트 인터랙티브 타임라인 로그 -->
+            <section class="h-48 bg-[#090b0e] border-t border-gray-800 p-4 font-mono text-xs overflow-y-auto flex flex-col space-y-1.5" id="log_terminal">
+                <!-- logs will stream here -->
+            </section>
+            <!-- Orderbook container (populated by JS polling) -->
+            <aside id="orderbook_container" class="w-full p-4 bg-[#0b0d10] border-t border-gray-800 text-xs text-gray-300">
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <div class="text-xs text-gray-400 mb-2">KRW-BTC Orderbook (Top 5)</div>
+                        <table id="btc_orderbook" class="w-full text-xs"><thead><tr><th class="text-left">Bid Price</th><th>Size</th><th class="text-left">Ask Price</th><th>Size</th></tr></thead><tbody></tbody></table>
+                    </div>
+                    <div class="flex-1">
+                        <div class="text-xs text-gray-400 mb-2">KRW-ETH Orderbook (Top 5)</div>
+                        <table id="eth_orderbook" class="w-full text-xs"><thead><tr><th class="text-left">Bid Price</th><th>Size</th><th class="text-left">Ask Price</th><th>Size</th></tr></thead><tbody></tbody></table>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 우측: Pionex 스타일 AI BOT 설정 패널 (25% 너비) -->
+        <aside class="w-1/4 bg-[#161a1e] p-5 flex flex-col justify-between overflow-y-auto">
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-sm font-bold text-white mb-3">🤖 AI 에이전트 봇 세팅</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="bg-[#2b3139] border border-emerald-500 text-emerald-400 text-xs py-2 rounded font-medium">AI 그리드 봇</button>
+                        <button class="bg-[#1e2226] text-gray-400 text-xs py-2 rounded font-medium hover:bg-[#2b3139] transition">무한 DCA 봇</button>
+                    </div>
+                </div>
+
+                <hr class="border-gray-800">
+
+                <!-- 파라미터 입력단 -->
+                <div class="space-y-4 text-xs">
+                    <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">최저 가격 한도 (Lower Limit)</label>
+                        <input type="number" value="3200000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">최고 가격 한도 (Upper Limit)</label>
+                        <input type="number" value="4100000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1.5 font-medium">
+                            <label class="text-gray-400">그리드 격자 수 (Grid Qty)</label>
+                            <span class="text-emerald-400 font-mono">45</span>
+                        </div>
+                        <input type="range" min="10" max="150" value="45" class="w-full accent-emerald-500">
+</div>
+                    <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">투자 금액 (KRW)</label>
+                        <input type="number" value="1000000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6">
+                <button onclick="alert('🚀 OpenClaw AI Swarm Grid Bot 가동 시작!')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-[#0c0e12] font-bold py-3 rounded text-sm transition shadow-lg shadow-emerald-500/10">
+                    🚀 AI 트레이딩 봇 가동 시작
+                </button>
+            </div>
+        </aside>
+
+    </div>
+
+<script>
+(function(){
+  const base = 'https://constraints-sunny-camp-antonio.trycloudflare.com';
+  const metricsUrl = base + '/api/stream-data';
+
+  // Polling loop - 1s interval
+  async function pollStream(){
+    try{
+      const res = await fetch(metricsUrl,{cache:'no-cache'});
+      if(!res.ok) return;
+      const j = await res.json();
+
+      // KPI: map total_assets + last prices for BTC/ETH
+      if(j.metrics){
+        document.getElementById('total_assets').innerText = '₩' + Number(j.metrics.total_assets || 0).toLocaleString();
+      }
+
+      // real-time trade prices
+      try{
+        const btcTrade = j.upbit && j.upbit['KRW-BTC'] && j.upbit['KRW-BTC'].trade && j.upbit['KRW-BTC'].trade.trade_price;
+        const ethTrade = j.upbit && j.upbit['KRW-ETH'] && j.upbit['KRW-ETH'].trade && j.upbit['KRW-ETH'].trade.trade_price;
+        if(btcTrade) document.getElementById('total_assets').dataset.btc = btcTrade; // keep as data attr
+        if(ethTrade) document.getElementById('total_assets').dataset.eth = ethTrade;
+        // display on KPI section by prepending small badges
+        const kpiNode = document.getElementById('kpi_section');
+        if(kpiNode){
+          const ex = kpiNode.querySelector('#btc_price_badge') || (function(){const n=document.createElement('div');n.id='btc_price_badge';n.className='text-xs text-gray-300';kpiNode.children[0].appendChild(n);return n;})();
+          const ey = kpiNode.querySelector('#eth_price_badge') || (function(){const n=document.createElement('div');n.id='eth_price_badge';n.className='text-xs text-gray-300';kpiNode.children[1].appendChild(n);return n;})();
+          ex.innerText = btcTrade ? 'BTC: ₩' + Number(btcTrade).toLocaleString() : '';
+          ey.innerText = ethTrade ? 'ETH: ₩' + Number(ethTrade).toLocaleString() : '';
+        }
+      }catch(_e){}
+
+      // orderbooks - populate top5 tables
+      try{
+        const fillOrderbook = (id, ob)=>{
+          const tbody = document.querySelector(id+' tbody');
+          if(!tbody) return;
+          tbody.innerHTML='';
+          const bids = ob && ob.bids ? ob.bids.slice(0,5) : [];
+          const asks = ob && ob.asks ? ob.asks.slice(0,5) : [];
+          for(let i=0;i<5;i++){
+            const b = bids[i] || {};
+            const a = asks[i] || {};
+            const tr = document.createElement('tr');
+            const td1 = document.createElement('td'); td1.innerText = b.bid_price ? Number(b.bid_price).toLocaleString() : '-';
+            const td2 = document.createElement('td'); td2.innerText = b.bid_size || '-';
+            const td3 = document.createElement('td'); td3.innerText = a.ask_price ? Number(a.ask_price).toLocaleString() : '-';
+            const td4 = document.createElement('td'); td4.innerText = a.ask_size || '-';
+            tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+            tbody.appendChild(tr);
+          }
+        }
+        fillOrderbook('#btc_orderbook', j.upbit && j.upbit['KRW-BTC'] ? j.upbit['KRW-BTC'].orderbook : null);
+        fillOrderbook('#eth_orderbook', j.upbit && j.upbit['KRW-ETH'] ? j.upbit['KRW-ETH'].orderbook : null);
+      }catch(_e){}
+
+    }catch(e){
+      // ignore transient errors
+    }
+  }
+
+  setInterval(pollStream,1000);
+  pollStream();
+})();
+</script>
+
+</body>
+</html>
