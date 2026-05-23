@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw AI Swarm Control Room</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body { background-color: #0c0e12; color: #eaecef; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-sans overflow-hidden">
+
+    <!-- 1. 최상단 내비게이션 바 -->
+    <header class="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-[#161a1e]">
+        <div class="flex items-center space-x-3">
+            <span class="text-emerald-500 font-black text-xl tracking-wider">OpenClaw</span>
+            <span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded font-mono">v2.0-Sandbox</span>
+        </div>
+        <div class="flex items-center space-x-6 text-sm">
+            <div class="flex items-center space-x-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-gray-300 font-medium">업비트 연동 활성화</span>
+            </div>
+            <button onclick="alert('🚨 EMERGENCY KILL-SWITCH ACTIVATED')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded transition shadow-lg shadow-rose-900/30">
+                ⚠️ KILL-SWITCH
+            </button>
+        </div>
+    </header>
+
+    <!-- 2. 메인 대시보드 영역 -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- 좌측: 차트 및 실시간 데이터 (75% 너비) -->
+        <main class="w-3/4 flex flex-col border-r border-gray-800">
+            <!-- 상단: 실시간 자산 & 토큰 KPI 지표 -->
+            <section class="grid grid-cols-4 gap-4 p-4 bg-[#0c0e12]">
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">총 가상 자산</p>
+                    <p class="text-lg font-bold text-white mt-1">₩10,532,000 <span class="text-xs text-emerald-500 font-normal">+0.52%</span></p>
+                </div>
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">당일 목표 달성률</p>
+                    <p class="text-lg font-bold text-emerald-400 mt-1">35.1% <span class="text-xs text-gray-500 font-normal">(진행중)</span></p>
+                </div>
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">누적 API 토큰 비용</p>
+                    <p class="text-lg font-bold text-amber-400 mt-1">$1.42 / <span class="text-sm text-gray-500">$10.00</span></p>
+                </div>
+                <div class="bg-[#161a1e] p-3 rounded border border-gray-800/60">
+                    <p class="text-xs text-gray-400 font-medium">활성 에이전트 스웜</p>
+                    <p class="text-lg font-bold text-indigo-400 mt-1">5 / 5 <span class="text-xs text-emerald-500 font-normal">🟢 RUN</span></p>
+                </div>
+            </section>
+
+            <!-- 중단: 트레이딩뷰 실시간 라이브 차트 -->
+            <section class="flex-1 bg-[#161a1e] relative min-h-[450px]">
+                <!-- TradingView Widget BEGIN -->
+                <div class="tradingview-widget-container h-full w-full">
+                    <div id="tradingview_chart" class="h-full w-full"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                    <script type="text/javascript">
+                    new TradingView.widget({
+                        "autosize": true,
+                        "symbol": "UPBIT:ETHKRW",
+                        "interval": "15",
+                        "timezone": "Asia/Seoul",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "ko",
+                        "enable_publishing": false,
+                        "hide_side_toolbar": false,
+                        "allow_symbol_change": true,
+                        "container_id": "tradingview_chart"
+                    });
+                    </script>
+                </div>
+                <!-- TradingView Widget END -->
+            </section>
+
+            <!-- 하단: 에이전트 인터랙티브 타임라인 로그 -->
+            <section class="h-48 bg-[#090b0e] border-t border-gray-800 p-4 font-mono text-xs overflow-y-auto flex flex-col space-y-1.5">
+                <div class="text-gray-500">[2026-05-23 14:10:02] <span class="text-indigo-400">[Agent_Sensor]</span> UPBIT WebSocket 연결 성공. KRW-ETH 스트리밍 가동.</div>
+                <div class="text-gray-500">[2026-05-23 14:10:05] <span class="text-emerald-400">[Agent_Quant]</span> 단기 단일 이평선 지지 확인. 매수 강도 필터 통과.</div>
+                <div class="text-gray-500">[2026-05-23 14:10:06] <span class="text-amber-400">[Agent_Risk]</span> 일일 투자 한도 검증: 정상. 주문 실행 승인 코드 발급.</div>
+                <div class="text-gray-500">[2026-05-23 14:10:07] <span class="text-rose-400">[Agent_Hermes]</span> 모의투자 계좌 시장가 매수 주문 전송 -> 체결 완료 (ETH ₩3,500,000)</div>
+                <div class="text-gray-500">[2026-05-23 14:10:08] <span class="text-blue-400">[Agent_Overseer]</span> 쿼리 세션 종료. 사용 토큰: 1,240 tokens ($0.018)</div>
+            </section>
+        </main>
+
+        <!-- 우측: Pionex 스타일 AI BOT 설정 패널 (25% 너비) -->
+        <aside class="w-1/4 bg-[#161a1e] p-5 flex flex-col justify-between overflow-y-auto">
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-sm font-bold text-white mb-3">🤖 AI 에이전트 봇 세팅</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="bg-[#2b3139] border border-emerald-500 text-emerald-400 text-xs py-2 rounded font-medium">AI 그리드 봇</button>
+                        <button class="bg-[#1e2226] text-gray-400 text-xs py-2 rounded font-medium hover:bg-[#2b3139] transition">무한 DCA 봇</button>
+                    </div>
+                </div>
+
+                <hr class="border-gray-800">
+
+                <!-- 파라미터 입력단 -->
+                <div class="space-y-4 text-xs">
+                    <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">최저 가격 한도 (Lower Limit)</label>
+                        <input type="number" value="3200000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">최고 가격 한도 (Upper Limit)</label>
+                        <input type="number" value="4100000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1.5 font-medium">
+                            <label class="text-gray-400">그리드 격자 수 (Grid Qty)</label>
+                            <span class="text-emerald-400 font-mono">45</span>
+                        </div>
+                        <input type="range" min="10" max="150" value="45" class="w-full accent-emerald-500">
+</div>
+                    <div>
+                        <label class="text-gray-400 block mb-1.5 font-medium">투자 금액 (KRW)</label>
+                        <input type="number" value="1000000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6">
+                <button onclick="alert('🚀 OpenClaw AI Swarm Grid Bot 가동 시작!')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-[#0c0e12] font-bold py-3 rounded text-sm transition shadow-lg shadow-emerald-500/10">
+                    🚀 AI 트레이딩 봇 가동 시작
+                </button>
+            </div>
+        </aside>
+
+    </div>
+</body>
+</html>
