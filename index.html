@@ -509,8 +509,13 @@
             document.getElementById('token_cost').innerText = '$' + Number(msg.metrics.token_cost || 0).toFixed(2) + ' (누적)';
             document.getElementById('daily_goal').innerText = (Number(msg.metrics.daily_goal||0)).toFixed(1) + '%';
             document.getElementById('active_agents').innerText = (Number(msg.metrics.active_agents||0)) + ' agents';
+            // update compact KPI recent price box if present
+            try{ const kp = document.getElementById('kpi_current_price'); if(kp && msg.metrics.last_price) kp.innerText = '현재가: ₩' + Number(msg.metrics.last_price).toLocaleString(); }catch(e){}
+            try{ const badge = document.getElementById('current_price_badge'); if(badge && msg.metrics.last_price) badge.innerText = '현재가: ₩' + Number(msg.metrics.last_price).toLocaleString(); }catch(e){}
           }
-              if(msg.source === 'order' && msg.order){
+
+          // Handle order-like broadcasts (order updates)
+          if(msg.source === 'order' && msg.order){
             const node = document.getElementById('log_terminal');
             const line = document.createElement('div');
             line.innerText = `[ORDER] ${msg.order.id} ${msg.order.market} ${msg.order.status} ${msg.order.price || ''}`;
@@ -519,6 +524,31 @@
             if(msg.order.status === 'simulated'){
               appendRecentTrade(`[SIM] ${msg.order.id} ${msg.order.side||'buy'} ${msg.order.price||''} ${msg.order.qty||''}`);
             }
+          }
+
+          // Handle grid events (internal grid engine broadcasts)
+          if(msg.event === 'grid_buy_executed' || msg.event === 'grid_sell_executed'){
+            try{
+              const ev = msg.event;
+              const price = msg.exec_price || msg.price || (msg.order && msg.order.price) || '';
+              const qty = msg.qty || (msg.order && msg.order.qty) || '';
+              appendRecentTrade(`[${ev}] price: ${price} qty: ${qty}`);
+              // also log into terminal
+              const node2 = document.getElementById('log_terminal');
+              const line2 = document.createElement('div');
+              line2.innerText = `[${ev}] ${price} ${qty}`;
+              node2.prepend(line2);
+            }catch(e){/*ignore*/}
+          }
+
+          // Bot lifecycle events
+          if(msg.event === 'bot_started' || msg.event === 'bot_live_enabled' || msg.event === 'bot_stopped'){
+            try{
+              const note = document.createElement('div');
+              note.innerText = `[SYS] ${msg.msg || JSON.stringify(msg)}`;
+              document.getElementById('log_terminal').prepend(note);
+              appendRecentTrade(`[SYS] ${msg.msg || msg.event}`);
+            }catch(e){}
           }
         }catch(e){/* ignore */}
       };
