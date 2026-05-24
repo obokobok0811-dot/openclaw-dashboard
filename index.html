@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="api-base" content="https://constraints-sunny-camp-antonio.trycloudflare.com">
     <title>OpenClaw AI Swarm Control Room</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
@@ -172,10 +173,23 @@
 
 <script>
 (function(){
-  const base = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? 'http://127.0.0.1:8000' : 'https://constraints-sunny-camp-antonio.trycloudflare.com';
-  const metricsUrl = base + '/api/stream-data';
-  const botCalcUrl = base + '/api/bot/calculator';
-  const botCreateUrl = base + '/api/bot/create';
+  // Resolve API base dynamically:
+  // - explicit override via global JS var: window.__API_BASE__
+  // - optional meta tag: <meta name="api-base" content="https://...">
+  // - fallback to localhost for local dev or a production Cloudflare tunnel URL
+  (function(){
+    const meta = (typeof document !== 'undefined') && document.querySelector('meta[name="api-base"]');
+    const envBase = (typeof window !== 'undefined') ? (window.__API_BASE__ || window.OPENCODE_API_BASE) : null;
+    const defaultBase = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? 'http://127.0.0.1:8000' : 'https://constraints-sunny-camp-antonio.trycloudflare.com';
+    window.__OPENCODE_BASE__ = envBase || (meta && meta.content) || defaultBase;
+  })();
+  // determine host base (local vs tunnel). Keep base as protocol+host (no trailing path)
+  const hostBase = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? 'http://127.0.0.1:8000' : 'https://constraints-sunny-camp-antonio.trycloudflare.com';
+  const base = hostBase.replace(/\/+$/,'');
+  const apiBase = base + '/api';
+  const metricsUrl = apiBase + '/stream-data';
+  const botCalcUrl = apiBase + '/bot/calculator';
+  const botCreateUrl = apiBase + '/bot/create';
 
   // Bot builder UI helpers
   function $(sel, root=document){ return root.querySelector(sel); }
