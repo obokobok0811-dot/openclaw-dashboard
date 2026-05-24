@@ -242,6 +242,7 @@
   // expose for debugging
   window.__OPENCODE_API_BASE__ = absoluteApiBase;
   window.__OPENCODE_WS_URL__ = wsUrl;
+  console.info('[opencode] apiBase=', absoluteApiBase, 'wsUrl=', wsUrl);
   // construct endpoint URLs from absolute base
   const metricsUrl = absoluteApiBase.replace(/\/$/, '') + '/stream-data';
   const botCalcUrl = absoluteApiBase.replace(/\/$/, '') + '/bot/calculator';
