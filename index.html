@@ -183,10 +183,26 @@
     const defaultBase = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? 'http://127.0.0.1:8000' : 'https://constraints-sunny-camp-antonio.trycloudflare.com';
     window.__OPENCODE_BASE__ = envBase || (meta && meta.content) || defaultBase;
   })();
-  // determine host base (local vs tunnel). Keep base as protocol+host (no trailing path)
-  const hostBase = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? 'http://127.0.0.1:8000' : 'https://constraints-sunny-camp-antonio.trycloudflare.com';
-  const base = hostBase.replace(/\/+$/,'');
-  const apiBase = base + '/api';
+  // Determine API base dynamically:
+  // - prefer explicit overrides (window.__API_BASE__ or meta[name="api-base"]) for testing
+  // - localhost -> local backend
+  // - vercel.app -> use serverless proxy at /api/proxy
+  // - otherwise -> fallback to the Cloudflare tunnel
+  const hostIsLocal = (location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+  const hostIsVercel = location.hostname && location.hostname.endsWith('.vercel.app');
+  const metaNode = document.querySelector('meta[name="api-base"]');
+  const explicit = (typeof window !== 'undefined' && (window.__API_BASE__ || window.OPENCODE_API_BASE)) || (metaNode && metaNode.content);
+  let apiBase;
+  if (explicit) {
+    apiBase = (typeof window !== 'undefined' && (window.__API_BASE__ || window.OPENCODE_API_BASE)) || (metaNode && metaNode.content);
+  } else if (hostIsLocal) {
+    apiBase = 'http://127.0.0.1:8000/api';
+  } else if (hostIsVercel) {
+    // When hosted on Vercel, route API calls to the serverless proxy added at /api/proxy
+    apiBase = '/api/proxy';
+  } else {
+    apiBase = 'https://constraints-sunny-camp-antonio.trycloudflare.com/api';
+  }
   const metricsUrl = apiBase + '/stream-data';
   const botCalcUrl = apiBase + '/bot/calculator';
   const botCreateUrl = apiBase + '/bot/create';
