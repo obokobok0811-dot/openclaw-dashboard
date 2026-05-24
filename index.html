@@ -117,18 +117,18 @@
                 <div class="space-y-4 text-xs">
                     <div>
                         <label class="text-gray-400 block mb-1.5 font-medium">최저 가격 한도 (Lower Limit)</label>
-                        <input type="number" value="3200000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                        <input id="lower_input" type="number" value="3200000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
                     </div>
                     <div>
                         <label class="text-gray-400 block mb-1.5 font-medium">최고 가격 한도 (Upper Limit)</label>
-                        <input type="number" value="4100000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
+                        <input id="upper_input" type="number" value="4100000" class="w-full bg-[#0c0e12] border border-gray-800 rounded p-2 text-white focus:outline-none focus:border-emerald-500 font-mono text-sm">
                     </div>
                     <div>
                         <div class="flex justify-between mb-1.5 font-medium">
                             <label class="text-gray-400">그리드 격자 수 (Grid Qty)</label>
                             <span class="text-emerald-400 font-mono">45</span>
                         </div>
-                        <input type="range" min="10" max="150" value="45" class="w-full accent-emerald-500">
+                        <input id="grid_range" type="range" min="10" max="150" value="45" class="w-full accent-emerald-500">
 </div>
                     <div>
                         <label class="text-gray-400 block mb-1.5 font-medium">투자 금액 (KRW)</label>
@@ -161,8 +161,8 @@
                 </div>
             </div>
 
-            <div class="pt-6">
-                <button onclick="alert('🚀 OpenClaw AI Swarm Grid Bot 가동 시작!')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-[#0c0e12] font-bold py-3 rounded text-sm transition shadow-lg shadow-emerald-500/10">
+                <div class="pt-6">
+                <button id="create_btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-[#0c0e12] font-bold py-3 rounded text-sm transition shadow-lg shadow-emerald-500/10">
                     🚀 AI 트레이딩 봇 가동 시작
                 </button>
             </div>
@@ -172,7 +172,7 @@
 
 <script>
 (function(){
-  const base = 'https://constraints-sunny-camp-antonio.trycloudflare.com';
+  const base = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? 'http://127.0.0.1:8000' : 'https://constraints-sunny-camp-antonio.trycloudflare.com';
   const metricsUrl = base + '/api/stream-data';
   const botCalcUrl = base + '/api/bot/calculator';
   const botCreateUrl = base + '/api/bot/create';
@@ -180,17 +180,16 @@
   // Bot builder UI helpers
   function $(sel, root=document){ return root.querySelector(sel); }
   const rightPane = document.querySelector('aside.w-1/4');
-  const lowerInput = $('input[type="number"]', rightPane);
-  const upperInput = rightPane.querySelectorAll('input[type="number"]')[1];
-  const gridRange = rightPane.querySelector('input[type="range"]');
-  const investInput = rightPane.querySelectorAll('input[type="number"]')[2];
-  const investInput = rightPane.querySelectorAll('input[type="number"]')[2];
-+  const buyFirstInput = document.getElementById('bot_buy_first');
-+  const stopLossInput = document.getElementById('bot_stop_loss');
-+  const takeProfitInput = document.getElementById('bot_take_profit');
-+  const botNameInput = document.getElementById('bot_name');
-+  const botList = document.getElementById('bot_list');
-@@
+  const lowerInput = document.getElementById('lower_input');
+  const upperInput = document.getElementById('upper_input');
+  const gridRange = document.getElementById('grid_range');
+  const investInput = document.getElementById('bot_invest');
+  const buyFirstInput = document.getElementById('bot_buy_first');
+  const stopLossInput = document.getElementById('bot_stop_loss');
+  const takeProfitInput = document.getElementById('bot_take_profit');
+  const botNameInput = document.getElementById('bot_name');
+  const botList = document.getElementById('bot_list');
+  const createBtn = document.getElementById('create_btn');
    createBtn.addEventListener('click', async function(ev){
      ev.preventDefault();
      createBtn.disabled = true; createBtn.innerText = '시작 중...';
@@ -242,10 +241,22 @@
       let total_profit = 0;
       html += '<div class="mt-2 overflow-auto max-h-48">';
       html += '<table class="w-full text-xs"><thead><tr><th class="text-left">#</th><th class="text-left">Price</th><th class="text-left">KRW</th><th class="text-left">Qty</th><th class="text-left">Est Profit (KRW)</th></tr></thead><tbody>';
-      calc.grid_points.slice(0,200).forEach(g=>{
-        total_profit += Number(g.expected_profit_krw||0);
-        html += `<tr><td>${g.index}</td><td>₩${Number(g.price).toLocaleString()}</td><td>₩${Number(g.krw_alloc).toLocaleString()}</td><td>${g.qty}</td><td>₩${Number(g.expected_profit_krw).toLocaleString()}</td></tr>`;
-      });
+      // avoid rendering huge tables in the browser; decimate if too large
+      const maxRows = Math.min(calc.grid_points.length, 300);
+      if(calc.grid_points.length <= maxRows){
+        calc.grid_points.forEach(g=>{
+          total_profit += Number(g.expected_profit_krw||0);
+          html += `<tr><td>${g.index}</td><td>₩${Number(g.price).toLocaleString()}</td><td>₩${Number(g.krw_alloc).toLocaleString()}</td><td>${g.qty}</td><td>₩${Number(g.expected_profit_krw).toLocaleString()}</td></tr>`;
+        });
+      } else {
+        const step = Math.ceil(calc.grid_points.length / maxRows);
+        for(let i=0;i<calc.grid_points.length;i+=step){
+          const g = calc.grid_points[i];
+          total_profit += Number(g.expected_profit_krw||0);
+          html += `<tr><td>${g.index}</td><td>₩${Number(g.price).toLocaleString()}</td><td>₩${Number(g.krw_alloc).toLocaleString()}</td><td>${g.qty}</td><td>₩${Number(g.expected_profit_krw).toLocaleString()}</td></tr>`;
+        }
+        html += `<tr><td colspan='5' class='text-xs text-gray-400'>Showing decimated ${maxRows}/${calc.grid_points.length} rows for performance</td></tr>`;
+      }
       html += `</tbody></table></div>`;
       html += `<div class="text-xs text-emerald-300 mt-1">예상 총 격자 이익(모든 격자 합산, 보수적 추정): ₩${Number(total_profit).toLocaleString()}</div>`;
       if(calc.current_price){ html += `<div class="text-xs text-gray-400 mt-1">현재가: ₩${Number(calc.current_price).toLocaleString()}</div>`; }
@@ -276,14 +287,18 @@
         const range = Math.max(1, maxP - minP);
         // draw background
         ctx.fillStyle = '#0c0e12'; ctx.fillRect(0,0,canvas.width,canvas.height);
-        // draw lines
-        ctx.strokeStyle = '#2b3139'; ctx.lineWidth = 1;
-        gp.forEach(g=>{
-          const p = Number(g.price);
-          const y = Math.round((1 - ((p - minP) / range)) * (canvas.height - 8) + 4);
-          ctx.beginPath(); ctx.moveTo(6, y); ctx.lineTo(canvas.width - 6, y); ctx.stroke();
-          // label every Nth
-        });
+    // draw lines (limited for performance/readability)
+    ctx.strokeStyle = '#2b3139'; ctx.lineWidth = 1;
+    const maxLines = 200;
+    const lineStep = Math.max(1, Math.ceil(gp.length / maxLines));
+    const labelStep = Math.max(1, Math.ceil(gp.length / 10));
+    for(let i=0;i<gp.length;i+=lineStep){
+      const g = gp[i];
+      const p = Number(g.price);
+      const y = Math.round((1 - ((p - minP) / range)) * (canvas.height - 8) + 4);
+      ctx.beginPath(); ctx.moveTo(6, y); ctx.lineTo(canvas.width - 6, y); ctx.stroke();
+      if(i % labelStep === 0){ ctx.fillStyle = '#9ca3af'; ctx.fillText(Number(p).toLocaleString(), 8, y-2); }
+    }
         // price labels for min/max/current
         ctx.fillStyle = '#cbd5e1'; ctx.font = '12px monospace';
         ctx.fillText('High: ' + Number(maxP).toLocaleString(), 8, 14);
@@ -334,11 +349,13 @@
     ev.preventDefault();
     createBtn.disabled = true; createBtn.innerText = '시작 중...';
     try{
-      const body = { lower_limit: Number(lowerInput.value), upper_limit: Number(upperInput.value), grid_qty: Number(gridRange.value), invest_amount: Number(investInput.value), mode: 'arithmetic' };
+      const body = { lower_limit: Number(lowerInput.value), upper_limit: Number(upperInput.value), grid_qty: Number(gridRange.value), invest_amount: Number(investInput.value), mode: 'arithmetic', buy_first: Boolean(buyFirstInput.checked), stop_loss: Number(stopLossInput.value)||null, take_profit: Number(takeProfitInput.value)||null, name: botNameInput.value||null };
       const res = await fetch(botCreateUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
       const j = await res.json();
       if(j.status === 'ok'){
         createBtn.innerText = '🚀 봇 가동 완료';
+        // refresh bot list
+        fetchBotList();
         setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1500);
       } else {
         createBtn.innerText = '실패'; setTimeout(()=>{ createBtn.innerText='🚀 AI 트레이딩 봇 가동 시작'; createBtn.disabled = false; }, 1200);
