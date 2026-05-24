@@ -31,6 +31,12 @@
             </button>
         </div>
     </header>
+    <!-- Mobile compact recent trades / price bar -->
+    <div id="mobile_kpi_trades" class="md:hidden bg-[#0b1220] border-t border-gray-800 p-2 flex items-center justify-between text-xs text-gray-300">
+      <div id="mobile_price" class="font-mono text-emerald-300">현재가: --</div>
+      <div style="flex:1;padding-left:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" id="mobile_recent_preview">최근 모의 체결: -</div>
+      <button onclick="document.getElementById('recent_trades_panel') && document.getElementById('recent_trades_panel').scrollIntoView({behavior:'smooth'})" class="ml-2 bg-emerald-600 text-black px-2 py-1 rounded text-xs">보기</button>
+    </div>
 
     <!-- 2. 메인 대시보드 영역 -->
     <div class="flex-1 flex overflow-hidden">
