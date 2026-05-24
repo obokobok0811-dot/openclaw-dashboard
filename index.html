@@ -219,9 +219,33 @@
   } else {
     apiBase = 'https://constraints-sunny-camp-antonio.trycloudflare.com/api';
   }
-  const metricsUrl = apiBase + '/stream-data';
-  const botCalcUrl = apiBase + '/bot/calculator';
-  const botCreateUrl = apiBase + '/bot/create';
+
+  // Normalize and expose a reliable absolute API base and short base for relative use
+  let base = apiBase.replace(/\/\/$/, '');
+  let absoluteApiBase = base;
+  try {
+    absoluteApiBase = new URL(base, location.origin).toString();
+  } catch (e) {
+    console.warn('failed to build absoluteApiBase from', base, e);
+    if (base.startsWith('/')) absoluteApiBase = location.origin + base; else absoluteApiBase = base;
+  }
+  // Build a WebSocket URL that points to the API host's /ws/logs
+  let wsUrl = null;
+  try {
+    const u = new URL(absoluteApiBase);
+    const host = u.host; // includes port if any
+    wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + host + '/ws/logs';
+  } catch (e) {
+    console.warn('failed to derive wsUrl from', absoluteApiBase, e);
+    wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/logs';
+  }
+  // expose for debugging
+  window.__OPENCODE_API_BASE__ = absoluteApiBase;
+  window.__OPENCODE_WS_URL__ = wsUrl;
+  // construct endpoint URLs from absolute base
+  const metricsUrl = absoluteApiBase.replace(/\/$/, '') + '/stream-data';
+  const botCalcUrl = absoluteApiBase.replace(/\/$/, '') + '/bot/calculator';
+  const botCreateUrl = absoluteApiBase.replace(/\/$/, '') + '/bot/create';
 
   // Bot builder UI helpers
   function $(sel, root=document){ return root.querySelector(sel); }
