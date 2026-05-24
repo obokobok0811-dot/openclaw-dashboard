@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OpenClaw - Quick Demo GUI (Cloudflare Pages)</title>
+  <style>
+    body{font-family:Inter,Arial,Helvetica,sans-serif;background:#0b0f14;color:#e6eef6;padding:24px}
+    .card{max-width:820px;margin:18px auto;padding:18px;border-radius:8px;background:#0f1720;border:1px solid #26313a}
+    label{display:block;margin-top:10px;color:#9fb0c8;font-size:13px}
+    input,button,select{width:100%;padding:8px 10px;margin-top:6px;border-radius:6px;background:#06121a;border:1px solid #20303a;color:#e6eef6}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .small{font-size:12px;color:#8aa3bb}
+    pre{background:#041018;padding:12px;border-radius:6px;overflow:auto;max-height:320px}
+    .inline{display:inline-block;width:auto}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>OpenClaw Quick GUI — 모의투자 데모</h2>
+    <p class="small">간단한 입력으로 Grid 봇 계산기/생성 요청을 API로 전송합니다. (모의)</p>
+
+    <label>하단가 (Lower)</label>
+    <input id="lower" type="number" value="3300000">
+
+    <label>상단가 (Upper)</label>
+    <input id="upper" type="number" value="3900000">
+
+    <div class="row">
+      <div>
+        <label>격자 수 (Grid Qty)</label>
+        <input id="grid_qty" type="number" value="20">
+      </div>
+      <div>
+        <label>투자금 (KRW)</label>
+        <input id="invest" type="number" value="500000">
+      </div>
+    </div>
+
+    <label style="margin-top:12px">API 대상 (선택)</label>
+    <select id="api_target">
+      <option value="auto">Auto-detect (Vercel proxy / local / tunnel)</option>
+      <option value="local">http://127.0.0.1:8000/api (local)</option>
+      <option value="tunnel">https://constraints-sunny-camp-antonio.trycloudflare.com/api (tunnel)</option>
+      <option value="vercel">/api/proxy (deployed on Vercel)</option>
+    </select>
+
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button id="btn_calc">Run Calculator</button>
+      <button id="btn_create">Create Sim Bot</button>
+    </div>
+
+    <h3 style="margin-top:14px">Response</h3>
+    <pre id="out">(빈 출력)</pre>
+  </div>
+
+<script>
+(function(){
+  function $(id){return document.getElementById(id)}
+  const lower = $('lower'), upper = $('upper'), grid_qty = $('grid_qty'), invest = $('invest');
+  const api_target = $('api_target');
+  const out = $('out');
+
+  function detectBase(){
+    const explicit = api_target.value;
+    if(explicit === 'local') return 'http://127.0.0.1:8000/api';
+    if(explicit === 'tunnel') return 'https://constraints-sunny-camp-antonio.trycloudflare.com/api';
+    if(explicit === 'vercel') return '/api/proxy';
+    // auto: choose by hostname
+    const h = location.hostname;
+    if(h === '127.0.0.1' || h === 'localhost') return 'http://127.0.0.1:8000/api';
+    if(h.endsWith('.vercel.app')) return '/api/proxy';
+    return 'https://constraints-sunny-camp-antonio.trycloudflare.com/api';
+  }
+
+  async function doCalc(){
+    const base = detectBase();
+    out.textContent = 'Calling ' + base + '/bot/calculator ...';
+    try{
+      const body = { lower_limit: Number(lower.value), upper_limit: Number(upper.value), grid_qty: Number(grid_qty.value), invest_amount: Number(invest.value) };
+      const res = await fetch(base + '/bot/calculator', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const j = await res.text();
+      out.textContent = j;
+    }catch(e){ out.textContent = 'ERROR: '+String(e); }
+  }
+
+  async function doCreate(){
+    const base = detectBase();
+    out.textContent = 'Calling ' + base + '/bot/create ...';
+    try{
+      const body = { lower_limit: Number(lower.value), upper_limit: Number(upper.value), grid_qty: Number(grid_qty.value), invest_amount: Number(invest.value), buy_first: true, name: 'cloudflare-demo-' + Date.now() };
+      const res = await fetch(base + '/bot/create', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const j = await res.text();
+      out.textContent = j;
+    }catch(e){ out.textContent = 'ERROR: '+String(e); }
+  }
+
+  $('btn_calc').addEventListener('click', doCalc);
+  $('btn_create').addEventListener('click', doCreate);
+})();
+</script>
+</body>
+</html>
