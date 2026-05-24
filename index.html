@@ -159,6 +159,16 @@
                       <div class="font-medium mb-2">실행 중인 봇</div>
                       <div id="bot_list"></div>
                     </div>
+                    <!-- Recent simulated trades panel -->
+                    <div id="recent_trades_panel" class="mt-4 text-xs text-gray-300 bg-[#0b1220] p-3 rounded border border-gray-800">
+                      <div class="flex items-center justify-between mb-2">
+                        <div class="font-medium">최근 모의 체결</div>
+                        <div id="current_price_badge" class="text-emerald-300 text-xs">현재가: --</div>
+                      </div>
+                      <div id="recent_trades_list" style="max-height:200px;overflow:auto;font-family:monospace;" class="text-sm">
+                        <!-- rows appended here -->
+                      </div>
+                    </div>
                 </div>
             </div>
 
@@ -369,6 +379,18 @@
   let debounceId = null;
   function scheduleCalc(){ if(debounceId) clearTimeout(debounceId); debounceId = setTimeout(()=>{ fetchCalc(); debounceId=null; }, 150); }
 
+  // Recent trades helper: append a new line to the recent trades panel
+  function appendRecentTrade(text){
+    try{
+      const list = document.getElementById('recent_trades_list');
+      if(!list) return;
+      const row = document.createElement('div');
+      row.innerText = text;
+      list.prepend(row);
+      while(list.children.length > 200) list.removeChild(list.lastChild);
+    }catch(e){console.warn('appendRecentTrade failed', e);}
+  }
+
   lowerInput.addEventListener('input', scheduleCalc);
   upperInput.addEventListener('input', scheduleCalc);
   gridRange.addEventListener('input', ()=>{ rightPane.querySelector('span.text-emerald-400').innerText = gridRange.value; scheduleCalc(); });
@@ -488,11 +510,15 @@
             document.getElementById('daily_goal').innerText = (Number(msg.metrics.daily_goal||0)).toFixed(1) + '%';
             document.getElementById('active_agents').innerText = (Number(msg.metrics.active_agents||0)) + ' agents';
           }
-          if(msg.source === 'order' && msg.order){
+              if(msg.source === 'order' && msg.order){
             const node = document.getElementById('log_terminal');
             const line = document.createElement('div');
             line.innerText = `[ORDER] ${msg.order.id} ${msg.order.market} ${msg.order.status} ${msg.order.price || ''}`;
             node.prepend(line);
+            // also append to recent trades if simulated
+            if(msg.order.status === 'simulated'){
+              appendRecentTrade(`[SIM] ${msg.order.id} ${msg.order.side||'buy'} ${msg.order.price||''} ${msg.order.qty||''}`);
+            }
           }
         }catch(e){/* ignore */}
       };
