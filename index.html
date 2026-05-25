@@ -248,6 +248,35 @@
   const botCalcUrl = absoluteApiBase.replace(/\/$/, '') + '/bot/calculator';
   const botCreateUrl = absoluteApiBase.replace(/\/$/, '') + '/bot/create';
 
+  // Immediate initial metrics fetch to populate KPI tiles quickly (tries several endpoints)
+  async function fetchInitialMetrics(){
+    const candidates = [
+      metricsUrl,
+      'https://constraints-sunny-camp-antonio.trycloudflare.com/api/stream-data',
+      location.origin + '/api/stream-data',
+      'http://127.0.0.1:8000/api/stream-data'
+    ];
+    for(const url of candidates){
+      try{
+        const res = await fetch(url, {cache:'no-cache'});
+        if(!res.ok) continue;
+        const j = await res.json();
+        if(j && j.metrics){
+          const m = j.metrics;
+          try{ document.getElementById('total_assets').innerText = '₩' + Number(m.total_assets || 0).toLocaleString(); }catch(e){}
+          try{ document.getElementById('token_cost').innerText = '$' + Number(m.token_cost || 0).toFixed(2) + ' (누적)'; }catch(e){}
+          try{ document.getElementById('daily_goal').innerText = (Number(m.daily_goal||0)).toFixed(1) + '%'; }catch(e){}
+          try{ document.getElementById('active_agents').innerText = (Number(m.active_agents||0)) + ' agents'; }catch(e){}
+          try{ const badge = document.getElementById('current_price_badge'); if(badge && m.last_price) badge.innerText = '현재가: ₩' + Number(m.last_price).toLocaleString(); }catch(e){}
+          return true;
+        }
+      }catch(e){ /* ignore and try next */ }
+    }
+    return false;
+  }
+  // run initial metrics fetch but do not block page load
+  fetchInitialMetrics().then(ok=>{ if(!ok) console.warn('[opencode] initial metrics fetch failed on all candidates'); });
+
   // Bot builder UI helpers
   function $(sel, root=document){ return root.querySelector(sel); }
   const rightPane = document.querySelector('aside.w-1/4');
